@@ -1,0 +1,114 @@
+package control_ingresos_egresos_persona;
+
+import java.io.*;
+import java.util.*;
+
+public class Egresos {
+
+    public static void registrarEgreso(String idCuenta) {
+        Scanner scanner = new Scanner(System.in);
+
+        double totalIngresos = Ingresos.obtenerTotalIngresos(idCuenta);
+        double totalEgresos = obtenerTotalEgresos(idCuenta);
+        double saldoDisponible = totalIngresos - totalEgresos;
+
+        System.out.println("\nRegistro de Egreso");
+        System.out.println("Cuenta asociada: " + idCuenta);
+        System.out.println("Saldo disponible: " + saldoDisponible);
+
+        System.out.print("Ingrese Monto del egreso: ");
+        double monto;
+        try {
+            monto = Double.parseDouble(scanner.nextLine());
+        } catch (NumberFormatException e) {
+            System.out.println("Monto invalido.");
+            return;
+        }
+
+        if (monto > saldoDisponible) {
+            System.out.println("Error: El egreso excede el saldo disponible.");
+            return;
+        }
+
+        String correlativo = generarCorrelativoUnico();
+
+        System.out.print("Ingrese Descripcion del egreso: ");
+        String descripcion = scanner.nextLine();
+
+        System.out.print("Ingrese Fecha (dd/mm/yyyy): ");
+        String fecha = scanner.nextLine();
+
+        String registro = correlativo + "," + idCuenta + "," + monto + "," + descripcion + "," + fecha;
+
+        try {
+            File archivo = new File(System.getProperty("user.dir") + File.separator + "Egresos.txt");
+            if (!archivo.exists()) {
+                archivo.createNewFile();
+            }
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(archivo, true))) {
+                writer.write(registro);
+                writer.newLine();
+                System.out.println("Egreso guardado exitosamente. Correlativo: " + correlativo);
+            }
+        } catch (IOException e) {
+            System.err.println("Error al guardar el egreso: " + e.getMessage());
+        }
+    }
+
+    public static void verRegistrosPorCuenta(String idCuenta) {
+        System.out.println("\nEgresos para la cuenta: " + idCuenta);
+
+        try (BufferedReader reader = new BufferedReader(new FileReader("Egresos.txt"))) {
+            String linea;
+            boolean encontrado = false;
+            while ((linea = reader.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos[1].equals(idCuenta)) {
+                    System.out.println(linea);
+                    encontrado = true;
+                }
+            }
+            if (!encontrado) {
+                System.out.println("No se encontraron egresos para esta cuenta.");
+            }
+        } catch (IOException e) {
+            System.err.println("Error al leer el archivo: " + e.getMessage());
+        }
+    }
+
+    public static double obtenerTotalEgresos(String idCuenta) {
+        double total = 0.0;
+        try (BufferedReader reader = new BufferedReader(new FileReader("Egresos.txt"))) {
+            String linea;
+            while ((linea = reader.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos[1].equals(idCuenta)) {
+                    total += Double.parseDouble(datos[2]);
+                }
+            }
+        } catch (IOException | NumberFormatException e) {
+            System.err.println("Error calculando egresos: " + e.getMessage());
+        }
+        return total;
+    }
+
+    private static String generarCorrelativoUnico() {
+        Random random = new Random();
+        String correlativo;
+        Set<String> existentes = new HashSet<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader("Egresos.txt"))) {
+            String linea;
+            while ((linea = reader.readLine()) != null) {
+                String[] datos = linea.split(",");
+                existentes.add(datos[0]);
+            }
+        } catch (IOException ignored) {}
+
+        do {
+            correlativo = String.format("%06d", random.nextInt(1000000));
+        } while (existentes.contains(correlativo));
+
+        return correlativo;
+    }
+}
